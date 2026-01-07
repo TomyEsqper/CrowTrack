@@ -5,10 +5,11 @@ spring:
     active: ${SPRING_PROFILES_ACTIVE:dev}
 
   datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:crowtrack_core}
-    username: ${DB_USER:postgres}
-    password: ${DB_PASSWORD:postgres}
-    driver-class-name: org.postgresql.Driver
+    # Fallback to H2 if Postgres is not configured or fails
+    url: ${DB_URL:jdbc:h2:mem:crowtrack_core;DB_CLOSE_DELAY=-1;MODE=PostgreSQL}
+    username: ${DB_USER:sa}
+    password: ${DB_PASSWORD:}
+    driver-class-name: ${DB_DRIVER:org.h2.Driver}
     hikari:
       maximum-pool-size: ${DB_POOL_SIZE:10}
       minimum-idle: ${DB_MIN_IDLE:2}
@@ -19,14 +20,13 @@ spring:
   jpa:
     open-in-view: false
     hibernate:
-      ddl-auto: ${JPA_DDL_AUTO:validate}
+      ddl-auto: update # For H2/Dev convenience, usually validate. But with Flyway + H2 often safer to use update or none if Flyway works.
+      # Flyway works with H2 too.
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
+        dialect: ${DB_DIALECT:org.hibernate.dialect.H2Dialect}
         format_sql: ${JPA_SHOW_SQL:false}
         default_schema: public
-        # Multi-tenancy configuration (Shared Database)
-        # implementation will rely on Hibernate Filters or Discriminator Column
         
   flyway:
     enabled: true

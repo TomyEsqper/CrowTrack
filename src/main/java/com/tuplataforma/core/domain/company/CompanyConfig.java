@@ -1,4 +1,4 @@
-package com.tuplataforma.core.domain.model;
+package com.tuplataforma.core.domain.company;
 
 import java.util.Map;
 
