@@ -2,9 +2,14 @@ package com.tuplataforma.core.domain.fleet;
 
 import com.tuplataforma.core.shared.tenant.TenantId;
 import com.tuplataforma.core.domain.fleet.exceptions.InvalidLicensePlateException;
+import com.tuplataforma.core.domain.events.DomainEvent;
+import com.tuplataforma.core.domain.events.VehicleAssignedToFleetEvent;
 
 import java.time.Instant;
 import java.util.UUID;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 public class Vehicle {
     private final UUID id;
@@ -15,6 +20,7 @@ public class Vehicle {
     private Instant createdAt;
     private Instant updatedAt;
     private UUID assignedFleetId;
+    private final List<DomainEvent> domainEvents = new ArrayList<>();
 
     public Vehicle(UUID id, TenantId tenantId, String licensePlate, String model, boolean active, Instant createdAt, Instant updatedAt) {
         if (tenantId == null) throw new IllegalArgumentException("TenantId requerido");
@@ -51,5 +57,14 @@ public class Vehicle {
         if (!fleet.getTenantId().equals(this.tenantId)) throw new com.tuplataforma.core.domain.fleet.exceptions.CrossTenantAssignmentException("Cross-tenant no permitido");
         if (this.assignedFleetId != null && !this.assignedFleetId.equals(fleet.getId())) throw new com.tuplataforma.core.domain.fleet.exceptions.VehicleAlreadyAssignedException("Vehículo ya asignado");
         this.assignedFleetId = fleet.getId();
+        domainEvents.add(new VehicleAssignedToFleetEvent(this.id, this.assignedFleetId, this.tenantId.getValue(), Instant.now()));
+    }
+
+    public List<DomainEvent> collectDomainEvents() {
+        return Collections.unmodifiableList(domainEvents);
+    }
+
+    public void clearDomainEvents() {
+        domainEvents.clear();
     }
 }

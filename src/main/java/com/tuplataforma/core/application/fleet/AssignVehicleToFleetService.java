@@ -2,6 +2,7 @@ package com.tuplataforma.core.application.fleet;
 
 import com.tuplataforma.core.application.fleet.dto.AssignVehicleToFleetCommand;
 import com.tuplataforma.core.application.fleet.dto.AssignmentResult;
+import com.tuplataforma.core.application.events.DomainEventPublisher;
 import com.tuplataforma.core.domain.fleet.Fleet;
 import com.tuplataforma.core.domain.fleet.FleetRepository;
 import com.tuplataforma.core.domain.fleet.Vehicle;
@@ -15,10 +16,12 @@ public class AssignVehicleToFleetService implements AssignVehicleToFleetUseCase 
 
     private final VehicleRepository vehicleRepository;
     private final FleetRepository fleetRepository;
+    private final DomainEventPublisher eventPublisher;
 
-    public AssignVehicleToFleetService(VehicleRepository vehicleRepository, FleetRepository fleetRepository) {
+    public AssignVehicleToFleetService(VehicleRepository vehicleRepository, FleetRepository fleetRepository, DomainEventPublisher eventPublisher) {
         this.vehicleRepository = vehicleRepository;
         this.fleetRepository = fleetRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional
@@ -29,8 +32,10 @@ public class AssignVehicleToFleetService implements AssignVehicleToFleetUseCase 
         Fleet fleet = fleetRepository.findById(command.fleetId())
                 .orElseThrow(() -> new com.tuplataforma.core.domain.fleet.exceptions.FleetNotFoundException(command.fleetId()));
         vehicle.assignTo(fleet);
+        var events = new java.util.ArrayList<>(vehicle.collectDomainEvents());
         Vehicle saved = vehicleRepository.save(vehicle);
+        eventPublisher.publishAfterCommit(events);
+        vehicle.clearDomainEvents();
         return new AssignmentResult(saved.getId(), saved.getAssignedFleetId());
     }
 }
-
