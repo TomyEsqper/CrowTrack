@@ -5,6 +5,25 @@ import com.tuplataforma.core.shared.tenant.TenantId;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 
+/**
+ * Listener to enforce tenant isolation at the entity level.
+ * 
+ * <p><strong>TECHNICAL DEBT / TEMPORARY DECISION:</strong></p>
+ * Using an EntityListener is a simple and effective starting point, but it has limitations:
+ * <ul>
+ *   <li>It may be bypassed by bulk updates (JPQL/SQL).</li>
+ *   <li>It is coupled to the JPA lifecycle.</li>
+ *   <li>It is harder to test in isolation.</li>
+ * </ul>
+ * 
+ * <p><strong>FUTURE MIGRATION PATH:</strong></p>
+ * In later phases (scaling/hardening), consider migrating to:
+ * <ul>
+ *   <li>Hibernate Filters (for transparent read filtering).</li>
+ *   <li>MultiTenantConnectionProvider (schema-based isolation).</li>
+ *   <li>Mandatory Specifications.</li>
+ * </ul>
+ */
 public class TenantEntityListener {
 
     @PrePersist
