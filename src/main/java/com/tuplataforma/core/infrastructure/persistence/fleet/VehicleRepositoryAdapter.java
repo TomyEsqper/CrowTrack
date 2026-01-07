@@ -12,9 +12,11 @@ import java.util.UUID;
 public class VehicleRepositoryAdapter implements VehicleRepository {
 
     private final JpaVehicleRepository jpaRepository;
+    private final JpaFleetRepository jpaFleetRepository;
 
-    public VehicleRepositoryAdapter(JpaVehicleRepository jpaRepository) {
+    public VehicleRepositoryAdapter(JpaVehicleRepository jpaRepository, JpaFleetRepository jpaFleetRepository) {
         this.jpaRepository = jpaRepository;
+        this.jpaFleetRepository = jpaFleetRepository;
     }
 
     @Override
@@ -35,47 +37,34 @@ public class VehicleRepositoryAdapter implements VehicleRepository {
     }
 
     private VehicleEntity toEntity(Vehicle domain) {
-        VehicleEntity entity = new VehicleEntity();
+        VehicleEntity entity;
         if (domain.getId() != null) {
-            // How to set ID on BaseTenantEntity if it's protected?
-            // Reflection or protected setter. But VehicleEntity extends it, so it can access.
-            // Wait, BaseTenantEntity fields are protected.
-            // But VehicleEntity inherits them.
-            // I need a way to set ID.
-            // I should add a constructor or setter in BaseTenantEntity or VehicleEntity.
-            // VehicleEntity has @Setter (Lombok), so setId should work.
+            entity = jpaRepository.findById(domain.getId()).orElseGet(VehicleEntity::new);
+        } else {
+            entity = new VehicleEntity();
         }
-        // Actually, for updates, we should fetch and update.
-        // For new, we let BaseTenantEntity generate ID if null.
-        // But if domain has ID (update), we need to set it.
-        // If domain has no ID, it's new.
-        
-        // Simpler: Just map fields.
-        // If domain.getId() is present, we might need to reference it.
-        // But BaseTenantEntity generates ID on PrePersist if null.
-        
-        // If it's an update, we should ideally load the entity first.
-        // But for save(), merge behavior applies.
-        
-        // Let's use a constructor or setters.
         entity.setLicensePlate(domain.getLicensePlate());
         entity.setModel(domain.getModel());
         entity.setActive(domain.isActive());
-        // tenantId is handled by Listener, but if we have it in domain, we might want to check/set?
-        // Listener uses Context.
-        
+        if (domain.getAssignedFleetId() != null) {
+            jpaFleetRepository.findById(domain.getAssignedFleetId()).ifPresent(entity::setFleet);
+        } else {
+            entity.setFleet(null);
+        }
         return entity;
     }
 
     private Vehicle toDomain(VehicleEntity entity) {
+        UUID fleetId = entity.getFleet() != null ? entity.getFleet().getId() : null;
         return new Vehicle(
-            entity.getId(),
-            new TenantId(entity.getTenantId()),
-            entity.getLicensePlate(),
-            entity.getModel(),
-            entity.isActive(),
-            entity.getCreatedAt(),
-            entity.getUpdatedAt()
+                entity.getId(),
+                new TenantId(entity.getTenantId()),
+                entity.getLicensePlate(),
+                entity.getModel(),
+                entity.isActive(),
+                entity.getCreatedAt(),
+                entity.getUpdatedAt(),
+                fleetId
         );
     }
 }

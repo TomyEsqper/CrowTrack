@@ -3,6 +3,8 @@ package com.tuplataforma.core.infrastructure.persistence.fleet;
 import com.tuplataforma.core.infrastructure.persistence.shared.BaseTenantEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import lombok.AllArgsConstructor;
@@ -28,4 +30,8 @@ public class VehicleEntity extends BaseTenantEntity {
 
     @Column(name = "active", nullable = false)
     private boolean active;
+
+    @ManyToOne
+    @JoinColumn(name = "fleet_id")
+    private FleetEntity fleet;
 }
