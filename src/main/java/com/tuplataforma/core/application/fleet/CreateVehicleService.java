@@ -9,6 +9,7 @@ import com.tuplataforma.core.application.security.ApplicationPermissionGuard;
 import com.tuplataforma.core.application.security.Permission;
 import com.tuplataforma.core.application.subscription.SubscriptionGuard;
 import com.tuplataforma.core.application.usage.UsageTracker;
+import com.tuplataforma.core.application.performance.PerformanceMonitor;
 import com.tuplataforma.core.domain.fleet.Vehicle;
 import com.tuplataforma.core.domain.fleet.VehicleRepository;
 import com.tuplataforma.core.domain.fleet.ports.input.CreateVehicleUseCase;
@@ -27,19 +28,22 @@ public class CreateVehicleService implements CreateVehicleUseCase {
     private final JpaIdempotencyRepository idempotencyRepository;
     private final SubscriptionGuard subscriptionGuard;
     private final UsageTracker usageTracker;
+    private final PerformanceMonitor performanceMonitor;
 
-    public CreateVehicleService(VehicleRepository vehicleRepository, TenantPolicyGuard tenantPolicyGuard, ApplicationPermissionGuard permissionGuard, JpaIdempotencyRepository idempotencyRepository, SubscriptionGuard subscriptionGuard, UsageTracker usageTracker) {
+    public CreateVehicleService(VehicleRepository vehicleRepository, TenantPolicyGuard tenantPolicyGuard, ApplicationPermissionGuard permissionGuard, JpaIdempotencyRepository idempotencyRepository, SubscriptionGuard subscriptionGuard, UsageTracker usageTracker, PerformanceMonitor performanceMonitor) {
         this.vehicleRepository = vehicleRepository;
         this.tenantPolicyGuard = tenantPolicyGuard;
         this.permissionGuard = permissionGuard;
         this.idempotencyRepository = idempotencyRepository;
         this.subscriptionGuard = subscriptionGuard;
         this.usageTracker = usageTracker;
+        this.performanceMonitor = performanceMonitor;
     }
 
     @Transactional
     @Override
     public VehicleResult execute(CreateVehicleCommand command) {
+        long t0 = System.nanoTime();
         tenantPolicyGuard.ensureActiveAndModuleEnabled(Module.VEHICLE);
         tenantPolicyGuard.ensureVehicleQuota();
         subscriptionGuard.ensureActive();
@@ -70,6 +74,8 @@ public class CreateVehicleService implements CreateVehicleUseCase {
             r.setResultPayload(serializeVehicleResult(result));
             idempotencyRepository.save(r);
         }
+        long latencyMs = (System.nanoTime() - t0) / 1_000_000;
+        performanceMonitor.record("CreateVehicle", latencyMs);
         return result;
     }
 

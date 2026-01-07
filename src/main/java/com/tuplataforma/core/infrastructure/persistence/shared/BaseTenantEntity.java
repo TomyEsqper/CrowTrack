@@ -21,6 +21,10 @@ public abstract class BaseTenantEntity extends TenantAwareEntity {
     @Column(updatable = false, nullable = false)
     protected UUID id;
 
+    @Version
+    @Column(name = "version", nullable = false)
+    private Long version;
+
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -43,6 +47,10 @@ public abstract class BaseTenantEntity extends TenantAwareEntity {
 
     public UUID getId() {
         return id;
+    }
+
+    public Long getVersion() {
+        return version;
     }
 
     public Instant getCreatedAt() {

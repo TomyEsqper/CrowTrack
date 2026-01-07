@@ -16,6 +16,7 @@ public class AsyncVehicleAssignmentListener {
     private int failureCount = 0;
     private boolean circuitOpen = false;
     private long openUntil = 0;
+    private final java.util.concurrent.ConcurrentHashMap<String, java.util.concurrent.Semaphore> tenantSemaphores = new java.util.concurrent.ConcurrentHashMap<>();
 
     public AsyncVehicleAssignmentListener(JpaDeadLetterRepository deadLetterRepository) {
         this.deadLetterRepository = deadLetterRepository;
@@ -23,6 +24,16 @@ public class AsyncVehicleAssignmentListener {
 
     @EventListener
     public void on(VehicleAssignedToFleetEvent event) {
+        java.util.concurrent.Semaphore sem = tenantSemaphores.computeIfAbsent(event.getTenantId(), t -> new java.util.concurrent.Semaphore(5));
+        if (!sem.tryAcquire()) {
+            DeadLetterEvent dl = new DeadLetterEvent();
+            dl.setEventType(VehicleAssignedToFleetEvent.class.getName());
+            dl.setPayload(serialize(event));
+            dl.setCorrelationId(event.getCorrelationId());
+            dl.setErrorMessage("backpressure_drop");
+            deadLetterRepository.save(dl);
+            return;
+        }
         if (circuitOpen && System.currentTimeMillis() < openUntil) return;
         int attempts = 0;
         long backoff = 100;
@@ -32,7 +43,7 @@ public class AsyncVehicleAssignmentListener {
                 log.info("async_dispatch tenant={} correlationId={} useCase=AssignVehicleToFleet vehicle={} fleet={}", event.getTenantId(), event.getCorrelationId(), event.getVehicleId(), event.getFleetId());
                 failureCount = 0;
                 circuitOpen = false;
-                return;
+                break;
             } catch (Exception ex) {
                 failureCount++;
                 try { Thread.sleep(backoff); } catch (InterruptedException ignored) {}
@@ -49,6 +60,7 @@ public class AsyncVehicleAssignmentListener {
             dl.setErrorMessage("dispatch_failed");
             deadLetterRepository.save(dl);
         }
+        sem.release();
     }
 
     private String serialize(Object o) {
