@@ -1,24 +1,34 @@
 package com.tuplataforma.core.infrastructure.tenant;
 
+import com.tuplataforma.core.infrastructure.tenant.source.TenantSource;
+import com.tuplataforma.core.shared.tenant.TenantId;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.stereotype.Component;
-import org.springframework.util.StringUtils;
+
+import java.util.List;
+import java.util.Optional;
 
 @Component
 public class TenantResolver {
 
-    public static final String TENANT_HEADER = "X-Tenant-Id";
+    private final List<TenantSource> tenantSources;
 
-    public String resolveTenantId(HttpServletRequest request) {
-        String tenantId = request.getHeader(TENANT_HEADER);
-        if (StringUtils.hasText(tenantId)) {
-            return tenantId;
+    public TenantResolver(List<TenantSource> tenantSources) {
+        this.tenantSources = tenantSources;
+    }
+
+    public Optional<TenantId> resolveTenantId(HttpServletRequest request) {
+        for (TenantSource source : tenantSources) {
+            Optional<String> tenantIdStr = source.resolveTenantId(request);
+            if (tenantIdStr.isPresent()) {
+                try {
+                    return Optional.of(new TenantId(tenantIdStr.get()));
+                } catch (IllegalArgumentException e) {
+                    // Log invalid tenant format but continue or fail? 
+                    // For now, let's treat it as not found from this source
+                }
+            }
         }
-        
-        // TODO: Implement JWT extraction here when Security is ready
-        // String authHeader = request.getHeader("Authorization");
-        // ...
-        
-        return null;
+        return Optional.empty();
     }
 }
