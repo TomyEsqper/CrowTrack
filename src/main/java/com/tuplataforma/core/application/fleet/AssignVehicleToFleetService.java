@@ -11,6 +11,7 @@ import com.tuplataforma.core.application.security.Permission;
 import com.tuplataforma.core.application.subscription.SubscriptionGuard;
 import com.tuplataforma.core.application.usage.UsageTracker;
 import com.tuplataforma.core.application.performance.PerformanceMonitor;
+import com.tuplataforma.core.application.flags.FeatureFlagEvaluator;
 import com.tuplataforma.core.domain.fleet.Fleet;
 import com.tuplataforma.core.domain.fleet.FleetRepository;
 import com.tuplataforma.core.domain.fleet.Vehicle;
@@ -34,8 +35,9 @@ public class AssignVehicleToFleetService implements AssignVehicleToFleetUseCase 
     private final SubscriptionGuard subscriptionGuard;
     private final UsageTracker usageTracker;
     private final PerformanceMonitor performanceMonitor;
+    private final FeatureFlagEvaluator featureFlagEvaluator;
 
-    public AssignVehicleToFleetService(VehicleRepository vehicleRepository, FleetRepository fleetRepository, DomainEventPublisher eventPublisher, TenantPolicyGuard tenantPolicyGuard, ApplicationPermissionGuard permissionGuard, JpaIdempotencyRepository idempotencyRepository, SubscriptionGuard subscriptionGuard, UsageTracker usageTracker, PerformanceMonitor performanceMonitor) {
+    public AssignVehicleToFleetService(VehicleRepository vehicleRepository, FleetRepository fleetRepository, DomainEventPublisher eventPublisher, TenantPolicyGuard tenantPolicyGuard, ApplicationPermissionGuard permissionGuard, JpaIdempotencyRepository idempotencyRepository, SubscriptionGuard subscriptionGuard, UsageTracker usageTracker, PerformanceMonitor performanceMonitor, FeatureFlagEvaluator featureFlagEvaluator) {
         this.vehicleRepository = vehicleRepository;
         this.fleetRepository = fleetRepository;
         this.eventPublisher = eventPublisher;
@@ -45,6 +47,7 @@ public class AssignVehicleToFleetService implements AssignVehicleToFleetUseCase 
         this.subscriptionGuard = subscriptionGuard;
         this.usageTracker = usageTracker;
         this.performanceMonitor = performanceMonitor;
+        this.featureFlagEvaluator = featureFlagEvaluator;
     }
 
     @Transactional
@@ -53,6 +56,8 @@ public class AssignVehicleToFleetService implements AssignVehicleToFleetUseCase 
         long t0 = System.nanoTime();
         tenantPolicyGuard.ensureActiveAndModuleEnabled(Module.VEHICLE);
         tenantPolicyGuard.ensureActiveAndModuleEnabled(Module.FLEET);
+        if (!featureFlagEvaluator.isEnabled("module.vehicle")) throw new com.tuplataforma.core.application.subscription.PlanRestrictionException();
+        if (!featureFlagEvaluator.isEnabled("module.fleet")) throw new com.tuplataforma.core.application.subscription.PlanRestrictionException();
         subscriptionGuard.ensureActive();
         subscriptionGuard.ensureModule("VEHICLE");
         subscriptionGuard.ensureModule("FLEET");

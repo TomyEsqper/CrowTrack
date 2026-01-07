@@ -1,6 +1,10 @@
 package com.tuplataforma.core.infrastructure.web.errors;
 
 import com.tuplataforma.core.application.errors.ErrorCode;
+import com.tuplataforma.core.domain.audit.SecurityAuditEvent;
+import com.tuplataforma.core.shared.correlation.CorrelationContext;
+import com.tuplataforma.core.shared.tenant.TenantContext;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ControllerAdvice;
@@ -8,8 +12,14 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 
 @ControllerAdvice
 public class GlobalExceptionHandler {
+    private final ApplicationEventPublisher publisher;
+    public GlobalExceptionHandler(ApplicationEventPublisher publisher) { this.publisher = publisher; }
     @ExceptionHandler(com.tuplataforma.core.application.security.PermissionDeniedException.class)
     public ResponseEntity<ApiError> handlePermDenied(RuntimeException ex) {
+        String tenant = TenantContext.getTenantId() != null ? TenantContext.getTenantId().getValue() : "none";
+        String user = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication() != null ? org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName() : "anon";
+        String req = CorrelationContext.get();
+        publisher.publishEvent(new SecurityAuditEvent(tenant, user, req, "PermissionDenied", java.time.Instant.now()));
         return new ResponseEntity<>(new ApiError(ErrorCode.PERMISSION_DENIED.name(), "Permission denied"), HttpStatus.FORBIDDEN);
     }
     @ExceptionHandler(com.tuplataforma.core.application.governance.TenantSuspendedException.class)

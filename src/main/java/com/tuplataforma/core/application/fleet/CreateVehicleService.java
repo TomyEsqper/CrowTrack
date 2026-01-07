@@ -10,6 +10,7 @@ import com.tuplataforma.core.application.security.Permission;
 import com.tuplataforma.core.application.subscription.SubscriptionGuard;
 import com.tuplataforma.core.application.usage.UsageTracker;
 import com.tuplataforma.core.application.performance.PerformanceMonitor;
+import com.tuplataforma.core.application.flags.FeatureFlagEvaluator;
 import com.tuplataforma.core.domain.fleet.Vehicle;
 import com.tuplataforma.core.domain.fleet.VehicleRepository;
 import com.tuplataforma.core.domain.fleet.ports.input.CreateVehicleUseCase;
@@ -29,8 +30,9 @@ public class CreateVehicleService implements CreateVehicleUseCase {
     private final SubscriptionGuard subscriptionGuard;
     private final UsageTracker usageTracker;
     private final PerformanceMonitor performanceMonitor;
+    private final FeatureFlagEvaluator featureFlagEvaluator;
 
-    public CreateVehicleService(VehicleRepository vehicleRepository, TenantPolicyGuard tenantPolicyGuard, ApplicationPermissionGuard permissionGuard, JpaIdempotencyRepository idempotencyRepository, SubscriptionGuard subscriptionGuard, UsageTracker usageTracker, PerformanceMonitor performanceMonitor) {
+    public CreateVehicleService(VehicleRepository vehicleRepository, TenantPolicyGuard tenantPolicyGuard, ApplicationPermissionGuard permissionGuard, JpaIdempotencyRepository idempotencyRepository, SubscriptionGuard subscriptionGuard, UsageTracker usageTracker, PerformanceMonitor performanceMonitor, FeatureFlagEvaluator featureFlagEvaluator) {
         this.vehicleRepository = vehicleRepository;
         this.tenantPolicyGuard = tenantPolicyGuard;
         this.permissionGuard = permissionGuard;
@@ -38,6 +40,7 @@ public class CreateVehicleService implements CreateVehicleUseCase {
         this.subscriptionGuard = subscriptionGuard;
         this.usageTracker = usageTracker;
         this.performanceMonitor = performanceMonitor;
+        this.featureFlagEvaluator = featureFlagEvaluator;
     }
 
     @Transactional
@@ -46,6 +49,7 @@ public class CreateVehicleService implements CreateVehicleUseCase {
         long t0 = System.nanoTime();
         tenantPolicyGuard.ensureActiveAndModuleEnabled(Module.VEHICLE);
         tenantPolicyGuard.ensureVehicleQuota();
+        if (!featureFlagEvaluator.isEnabled("module.vehicle")) throw new com.tuplataforma.core.application.subscription.PlanRestrictionException();
         subscriptionGuard.ensureActive();
         subscriptionGuard.ensureModule("VEHICLE");
         subscriptionGuard.ensureVehicleQuota();
