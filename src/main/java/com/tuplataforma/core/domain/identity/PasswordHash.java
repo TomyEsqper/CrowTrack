@@ -1,19 +1,15 @@
-package com.tuplataforma.core.shared.tenant;
+package com.tuplataforma.core.domain.identity;
 
 import java.util.Objects;
 
-public final class TenantId {
+public final class PasswordHash {
     private final String value;
 
-    public TenantId(String value) {
+    public PasswordHash(String value) {
         if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException("TenantId cannot be null or empty");
+            throw new IllegalArgumentException("Password hash cannot be null or empty");
         }
         this.value = value;
-    }
-
-    public static TenantId fromString(String value) {
-        return new TenantId(value);
     }
 
     public String getValue() {
@@ -24,17 +20,12 @@ public final class TenantId {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
-        TenantId tenantId = (TenantId) o;
-        return Objects.equals(value, tenantId.value);
+        PasswordHash that = (PasswordHash) o;
+        return Objects.equals(value, that.value);
     }
 
     @Override
     public int hashCode() {
         return Objects.hash(value);
-    }
-
-    @Override
-    public String toString() {
-        return value;
     }
 }

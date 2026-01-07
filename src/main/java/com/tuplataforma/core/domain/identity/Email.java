@@ -1,19 +1,20 @@
-package com.tuplataforma.core.shared.tenant;
+package com.tuplataforma.core.domain.identity;
 
 import java.util.Objects;
+import java.util.regex.Pattern;
 
-public final class TenantId {
+public final class Email {
+    private static final Pattern EMAIL_PATTERN = Pattern.compile("^[A-Za-z0-9+_.-]+@(.+)$");
     private final String value;
 
-    public TenantId(String value) {
+    public Email(String value) {
         if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException("TenantId cannot be null or empty");
+            throw new IllegalArgumentException("Email cannot be null or empty");
+        }
+        if (!EMAIL_PATTERN.matcher(value).matches()) {
+            throw new IllegalArgumentException("Invalid email format");
         }
         this.value = value;
-    }
-
-    public static TenantId fromString(String value) {
-        return new TenantId(value);
     }
 
     public String getValue() {
@@ -24,8 +25,8 @@ public final class TenantId {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
-        TenantId tenantId = (TenantId) o;
-        return Objects.equals(value, tenantId.value);
+        Email email = (Email) o;
+        return Objects.equals(value, email.value);
     }
 
     @Override

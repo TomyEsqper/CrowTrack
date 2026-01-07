@@ -40,7 +40,8 @@ server:
 
 logging:
   level:
-    root: ${LOG_LEVEL_ROOT:INFO}
-    com.tuplataforma: ${LOG_LEVEL_APP:DEBUG}
-    org.springframework.web: ${LOG_LEVEL_WEB:INFO}
-    org.hibernate: ${LOG_LEVEL_HIBERNATE:INFO}
+    root: INFO
+    com.tuplataforma: DEBUG
+    org.springframework.security: DEBUG
+    org.springframework.web: DEBUG
+    org.hibernate: INFO

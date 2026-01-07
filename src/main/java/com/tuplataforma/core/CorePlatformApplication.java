@@ -1,4 +1,4 @@
-package com.tuplataforma.core.bootstrap;
+package com.tuplataforma.core;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -8,7 +8,6 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
 @SpringBootApplication
 @ComponentScan(basePackages = "com.tuplataforma.core")
-@EnableJpaRepositories(basePackages = "com.tuplataforma.core")
 @EntityScan(basePackages = "com.tuplataforma.core")
 public class CorePlatformApplication {
 
