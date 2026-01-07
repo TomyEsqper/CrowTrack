@@ -8,12 +8,14 @@ public final class VehicleAssignedToFleetEvent implements DomainEvent {
     private final UUID fleetId;
     private final String tenantId;
     private final Instant occurredAt;
+    private final String correlationId;
 
-    public VehicleAssignedToFleetEvent(UUID vehicleId, UUID fleetId, String tenantId, Instant occurredAt) {
+    public VehicleAssignedToFleetEvent(UUID vehicleId, UUID fleetId, String tenantId, Instant occurredAt, String correlationId) {
         this.vehicleId = vehicleId;
         this.fleetId = fleetId;
         this.tenantId = tenantId;
         this.occurredAt = occurredAt;
+        this.correlationId = correlationId;
     }
 
     public UUID getVehicleId() { return vehicleId; }
@@ -21,5 +23,5 @@ public final class VehicleAssignedToFleetEvent implements DomainEvent {
     public String getTenantId() { return tenantId; }
     @Override
     public Instant occurredAt() { return occurredAt; }
+    public String getCorrelationId() { return correlationId; }
 }
-

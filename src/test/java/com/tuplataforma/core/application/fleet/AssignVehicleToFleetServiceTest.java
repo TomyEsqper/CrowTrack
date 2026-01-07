@@ -13,6 +13,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.authentication.TestingAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.UUID;
 
@@ -35,6 +38,8 @@ class AssignVehicleToFleetServiceTest {
     @Test
     void casoFeliz_asignaVehiculoAFleetActiva() {
         TenantContext.setTenantId(new TenantId("tenant-a"));
+        SecurityContextHolder.getContext().setAuthentication(new TestingAuthenticationToken("u","p",
+                java.util.List.of(new SimpleGrantedAuthority("VEHICLE_CREATE"), new SimpleGrantedAuthority("VEHICLE_ASSIGN"))));
         FleetEntity fleet = new FleetEntity();
         fleet.setName("Main Fleet");
         fleet.setActive(true);
@@ -44,12 +49,15 @@ class AssignVehicleToFleetServiceTest {
         AssignmentResult result = assignService.execute(new AssignVehicleToFleetCommand(vehicle.id(), savedFleet.getId()));
         assertEquals(vehicle.id(), result.vehicleId());
         assertEquals(savedFleet.getId(), result.fleetId());
+        SecurityContextHolder.clearContext();
         TenantContext.clear();
     }
 
     @Test
     void violacion_invariante_vehiculoYaAsignado() {
         TenantContext.setTenantId(new TenantId("tenant-a"));
+        SecurityContextHolder.getContext().setAuthentication(new TestingAuthenticationToken("u","p",
+                java.util.List.of(new SimpleGrantedAuthority("VEHICLE_CREATE"), new SimpleGrantedAuthority("VEHICLE_ASSIGN"))));
         FleetEntity fleet1 = new FleetEntity();
         fleet1.setName("Fleet 1");
         fleet1.setActive(true);
@@ -65,12 +73,15 @@ class AssignVehicleToFleetServiceTest {
         assertThrows(VehicleAlreadyAssignedException.class, () ->
                 assignService.execute(new AssignVehicleToFleetCommand(vehicle.id(), savedFleet2.getId()))
         );
+        SecurityContextHolder.clearContext();
         TenantContext.clear();
     }
 
     @Test
     void crossTenant_fallaAunqueIdsExistan() {
         TenantContext.setTenantId(new TenantId("tenant-b"));
+        SecurityContextHolder.getContext().setAuthentication(new TestingAuthenticationToken("u","p",
+                java.util.List.of(new SimpleGrantedAuthority("VEHICLE_CREATE"), new SimpleGrantedAuthority("VEHICLE_ASSIGN"))));
         FleetEntity fleetB = new FleetEntity();
         fleetB.setName("Fleet B");
         fleetB.setActive(true);
@@ -78,10 +89,13 @@ class AssignVehicleToFleetServiceTest {
         TenantContext.clear();
 
         TenantContext.setTenantId(new TenantId("tenant-a"));
+        SecurityContextHolder.getContext().setAuthentication(new TestingAuthenticationToken("u","p",
+                java.util.List.of(new SimpleGrantedAuthority("VEHICLE_CREATE"), new SimpleGrantedAuthority("VEHICLE_ASSIGN"))));
         var vehicleA = createVehicleService.execute(new CreateVehicleCommand("CCC-333", "Model C"));
         assertThrows(RuntimeException.class, () ->
                 assignService.execute(new AssignVehicleToFleetCommand(vehicleA.id(), savedFleetB.getId()))
         );
+        SecurityContextHolder.clearContext();
         TenantContext.clear();
     }
 }

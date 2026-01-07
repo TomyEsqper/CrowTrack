@@ -14,6 +14,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.annotation.Rollback;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.authentication.TestingAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -36,6 +39,8 @@ class OutboxIntegrationTest {
     @Transactional
     void outboxSeLlenaEnTransaccionYSePublicaPosteriormente() {
         TenantContext.setTenantId(new TenantId("tenant-z"));
+        SecurityContextHolder.getContext().setAuthentication(new TestingAuthenticationToken("u","p",
+                java.util.List.of(new SimpleGrantedAuthority("VEHICLE_CREATE"), new SimpleGrantedAuthority("VEHICLE_ASSIGN"))));
         FleetEntity fleet = new FleetEntity();
         fleet.setName("Z-Fleet");
         fleet.setActive(true);
@@ -46,6 +51,7 @@ class OutboxIntegrationTest {
         assertTrue(outboxRepository.findTop100ByPublishedFalseOrderByOccurredOnAsc().size() >= 1);
         int published = outboxPublisherService.publishPending();
         assertTrue(published >= 1);
+        SecurityContextHolder.clearContext();
         TenantContext.clear();
     }
 

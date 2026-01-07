@@ -2,9 +2,16 @@ package com.tuplataforma.core.application.fleet;
 
 import com.tuplataforma.core.application.fleet.dto.CreateVehicleCommand;
 import com.tuplataforma.core.application.fleet.dto.VehicleResult;
+import com.tuplataforma.core.application.governance.Module;
+import com.tuplataforma.core.application.governance.TenantPolicyGuard;
+import com.tuplataforma.core.application.idempotency.IdempotencyContext;
+import com.tuplataforma.core.application.security.ApplicationPermissionGuard;
+import com.tuplataforma.core.application.security.Permission;
 import com.tuplataforma.core.domain.fleet.Vehicle;
 import com.tuplataforma.core.domain.fleet.VehicleRepository;
 import com.tuplataforma.core.domain.fleet.ports.input.CreateVehicleUseCase;
+import com.tuplataforma.core.infrastructure.idempotency.IdempotencyRecord;
+import com.tuplataforma.core.infrastructure.idempotency.JpaIdempotencyRepository;
 import com.tuplataforma.core.shared.tenant.TenantContext;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,21 +20,61 @@ import org.springframework.transaction.annotation.Transactional;
 public class CreateVehicleService implements CreateVehicleUseCase {
 
     private final VehicleRepository vehicleRepository;
+    private final TenantPolicyGuard tenantPolicyGuard;
+    private final ApplicationPermissionGuard permissionGuard;
+    private final JpaIdempotencyRepository idempotencyRepository;
 
-    public CreateVehicleService(VehicleRepository vehicleRepository) {
+    public CreateVehicleService(VehicleRepository vehicleRepository, TenantPolicyGuard tenantPolicyGuard, ApplicationPermissionGuard permissionGuard, JpaIdempotencyRepository idempotencyRepository) {
         this.vehicleRepository = vehicleRepository;
+        this.tenantPolicyGuard = tenantPolicyGuard;
+        this.permissionGuard = permissionGuard;
+        this.idempotencyRepository = idempotencyRepository;
     }
 
     @Transactional
     @Override
     public VehicleResult execute(CreateVehicleCommand command) {
+        tenantPolicyGuard.ensureActiveAndModuleEnabled(Module.VEHICLE);
+        tenantPolicyGuard.ensureVehicleQuota();
+        permissionGuard.require(Permission.VEHICLE_CREATE);
+        String idemKey = IdempotencyContext.get();
+        if (idemKey != null) {
+            var opt = idempotencyRepository.findByTenantIdAndIdempotencyKeyAndUseCase(TenantContext.getTenantId().getValue(), idemKey, "CreateVehicle");
+            if (opt.isPresent()) {
+                IdempotencyRecord r = opt.get();
+                return deserializeVehicleResult(r.getResultPayload());
+            }
+        }
         Vehicle vehicle = Vehicle.create(
                 TenantContext.getTenantId(),
                 command.licensePlate(),
                 command.model()
         );
         Vehicle saved = vehicleRepository.save(vehicle);
-        return new VehicleResult(saved.getId(), saved.getLicensePlate(), saved.getModel(), saved.isActive());
+        VehicleResult result = new VehicleResult(saved.getId(), saved.getLicensePlate(), saved.getModel(), saved.isActive());
+        if (idemKey != null) {
+            IdempotencyRecord r = new IdempotencyRecord();
+            r.setUseCase("CreateVehicle");
+            r.setIdempotencyKey(idemKey);
+            r.setResultPayload(serializeVehicleResult(result));
+            idempotencyRepository.save(r);
+        }
+        return result;
+    }
+
+    private String serializeVehicleResult(VehicleResult r) {
+        try {
+            return new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(r);
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+    private VehicleResult deserializeVehicleResult(String s) {
+        try {
+            return new com.fasterxml.jackson.databind.ObjectMapper().readValue(s, VehicleResult.class);
+        } catch (java.io.IOException e) {
+            throw new IllegalStateException(e);
+        }
     }
 }
 

@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/fleet/vehicles")
+@RequestMapping("/api/v1/fleet/vehicles")
 public class VehicleAssignmentController {
 
     private final AssignVehicleToFleetUseCase assignVehicleToFleetUseCase;

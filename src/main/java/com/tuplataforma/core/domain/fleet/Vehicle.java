@@ -4,6 +4,7 @@ import com.tuplataforma.core.shared.tenant.TenantId;
 import com.tuplataforma.core.domain.fleet.exceptions.InvalidLicensePlateException;
 import com.tuplataforma.core.domain.events.DomainEvent;
 import com.tuplataforma.core.domain.events.VehicleAssignedToFleetEvent;
+import com.tuplataforma.core.shared.correlation.CorrelationContext;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -57,7 +58,7 @@ public class Vehicle {
         if (!fleet.getTenantId().equals(this.tenantId)) throw new com.tuplataforma.core.domain.fleet.exceptions.CrossTenantAssignmentException("Cross-tenant no permitido");
         if (this.assignedFleetId != null && !this.assignedFleetId.equals(fleet.getId())) throw new com.tuplataforma.core.domain.fleet.exceptions.VehicleAlreadyAssignedException("Vehículo ya asignado");
         this.assignedFleetId = fleet.getId();
-        domainEvents.add(new VehicleAssignedToFleetEvent(this.id, this.assignedFleetId, this.tenantId.getValue(), Instant.now()));
+        domainEvents.add(new VehicleAssignedToFleetEvent(this.id, this.assignedFleetId, this.tenantId.getValue(), Instant.now(), CorrelationContext.get()));
     }
 
     public List<DomainEvent> collectDomainEvents() {
