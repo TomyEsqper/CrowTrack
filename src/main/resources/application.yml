@@ -2,40 +2,45 @@ spring:
   application:
     name: core-platform
   profiles:
-    active: dev
-  
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:crowtrack_core}
     username: ${DB_USER:postgres}
     password: ${DB_PASSWORD:postgres}
     driver-class-name: org.postgresql.Driver
-  
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+      minimum-idle: ${DB_MIN_IDLE:2}
+      idle-timeout: 30000
+      connection-timeout: 20000
+      max-lifetime: 1800000
+
   jpa:
     open-in-view: false
     hibernate:
-      ddl-auto: validate
+      ddl-auto: ${JPA_DDL_AUTO:validate}
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
-        format_sql: true
-  
+        format_sql: ${JPA_SHOW_SQL:false}
+        default_schema: public
+        # Multi-tenancy configuration (Shared Database)
+        # implementation will rely on Hibernate Filters or Discriminator Column
+        
   flyway:
     enabled: true
     baseline-on-migrate: true
     locations: classpath:db/migration
 
----
-spring:
-  config:
-    activate:
-      on-profile: dev
-  jpa:
-    show-sql: true
+server:
+  port: ${SERVER_PORT:8080}
+  servlet:
+    context-path: /api
 
----
-spring:
-  config:
-    activate:
-      on-profile: prod
-  jpa:
-    show-sql: false
+logging:
+  level:
+    root: ${LOG_LEVEL_ROOT:INFO}
+    com.tuplataforma: ${LOG_LEVEL_APP:DEBUG}
+    org.springframework.web: ${LOG_LEVEL_WEB:INFO}
+    org.hibernate: ${LOG_LEVEL_HIBERNATE:INFO}
