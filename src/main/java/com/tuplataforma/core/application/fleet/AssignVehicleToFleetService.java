@@ -8,6 +8,8 @@ import com.tuplataforma.core.application.governance.TenantPolicyGuard;
 import com.tuplataforma.core.application.idempotency.IdempotencyContext;
 import com.tuplataforma.core.application.security.ApplicationPermissionGuard;
 import com.tuplataforma.core.application.security.Permission;
+import com.tuplataforma.core.application.subscription.SubscriptionGuard;
+import com.tuplataforma.core.application.usage.UsageTracker;
 import com.tuplataforma.core.domain.fleet.Fleet;
 import com.tuplataforma.core.domain.fleet.FleetRepository;
 import com.tuplataforma.core.domain.fleet.Vehicle;
@@ -28,14 +30,18 @@ public class AssignVehicleToFleetService implements AssignVehicleToFleetUseCase 
     private final TenantPolicyGuard tenantPolicyGuard;
     private final ApplicationPermissionGuard permissionGuard;
     private final JpaIdempotencyRepository idempotencyRepository;
+    private final SubscriptionGuard subscriptionGuard;
+    private final UsageTracker usageTracker;
 
-    public AssignVehicleToFleetService(VehicleRepository vehicleRepository, FleetRepository fleetRepository, DomainEventPublisher eventPublisher, TenantPolicyGuard tenantPolicyGuard, ApplicationPermissionGuard permissionGuard, JpaIdempotencyRepository idempotencyRepository) {
+    public AssignVehicleToFleetService(VehicleRepository vehicleRepository, FleetRepository fleetRepository, DomainEventPublisher eventPublisher, TenantPolicyGuard tenantPolicyGuard, ApplicationPermissionGuard permissionGuard, JpaIdempotencyRepository idempotencyRepository, SubscriptionGuard subscriptionGuard, UsageTracker usageTracker) {
         this.vehicleRepository = vehicleRepository;
         this.fleetRepository = fleetRepository;
         this.eventPublisher = eventPublisher;
         this.tenantPolicyGuard = tenantPolicyGuard;
         this.permissionGuard = permissionGuard;
         this.idempotencyRepository = idempotencyRepository;
+        this.subscriptionGuard = subscriptionGuard;
+        this.usageTracker = usageTracker;
     }
 
     @Transactional
@@ -43,6 +49,9 @@ public class AssignVehicleToFleetService implements AssignVehicleToFleetUseCase 
     public AssignmentResult execute(AssignVehicleToFleetCommand command) {
         tenantPolicyGuard.ensureActiveAndModuleEnabled(Module.VEHICLE);
         tenantPolicyGuard.ensureActiveAndModuleEnabled(Module.FLEET);
+        subscriptionGuard.ensureActive();
+        subscriptionGuard.ensureModule("VEHICLE");
+        subscriptionGuard.ensureModule("FLEET");
         permissionGuard.require(Permission.VEHICLE_ASSIGN);
         String idemKey = IdempotencyContext.get();
         if (idemKey != null) {
@@ -61,6 +70,7 @@ public class AssignVehicleToFleetService implements AssignVehicleToFleetUseCase 
         eventPublisher.publishAfterCommit(events);
         vehicle.clearDomainEvents();
         AssignmentResult result = new AssignmentResult(saved.getId(), saved.getAssignedFleetId());
+        usageTracker.apiCall("VEHICLE");
         if (idemKey != null) {
             IdempotencyRecord r = new IdempotencyRecord();
             r.setUseCase("AssignVehicleToFleet");

@@ -7,6 +7,8 @@ import com.tuplataforma.core.application.governance.TenantPolicyGuard;
 import com.tuplataforma.core.application.idempotency.IdempotencyContext;
 import com.tuplataforma.core.application.security.ApplicationPermissionGuard;
 import com.tuplataforma.core.application.security.Permission;
+import com.tuplataforma.core.application.subscription.SubscriptionGuard;
+import com.tuplataforma.core.application.usage.UsageTracker;
 import com.tuplataforma.core.domain.fleet.Vehicle;
 import com.tuplataforma.core.domain.fleet.VehicleRepository;
 import com.tuplataforma.core.domain.fleet.ports.input.CreateVehicleUseCase;
@@ -23,12 +25,16 @@ public class CreateVehicleService implements CreateVehicleUseCase {
     private final TenantPolicyGuard tenantPolicyGuard;
     private final ApplicationPermissionGuard permissionGuard;
     private final JpaIdempotencyRepository idempotencyRepository;
+    private final SubscriptionGuard subscriptionGuard;
+    private final UsageTracker usageTracker;
 
-    public CreateVehicleService(VehicleRepository vehicleRepository, TenantPolicyGuard tenantPolicyGuard, ApplicationPermissionGuard permissionGuard, JpaIdempotencyRepository idempotencyRepository) {
+    public CreateVehicleService(VehicleRepository vehicleRepository, TenantPolicyGuard tenantPolicyGuard, ApplicationPermissionGuard permissionGuard, JpaIdempotencyRepository idempotencyRepository, SubscriptionGuard subscriptionGuard, UsageTracker usageTracker) {
         this.vehicleRepository = vehicleRepository;
         this.tenantPolicyGuard = tenantPolicyGuard;
         this.permissionGuard = permissionGuard;
         this.idempotencyRepository = idempotencyRepository;
+        this.subscriptionGuard = subscriptionGuard;
+        this.usageTracker = usageTracker;
     }
 
     @Transactional
@@ -36,6 +42,9 @@ public class CreateVehicleService implements CreateVehicleUseCase {
     public VehicleResult execute(CreateVehicleCommand command) {
         tenantPolicyGuard.ensureActiveAndModuleEnabled(Module.VEHICLE);
         tenantPolicyGuard.ensureVehicleQuota();
+        subscriptionGuard.ensureActive();
+        subscriptionGuard.ensureModule("VEHICLE");
+        subscriptionGuard.ensureVehicleQuota();
         permissionGuard.require(Permission.VEHICLE_CREATE);
         String idemKey = IdempotencyContext.get();
         if (idemKey != null) {
@@ -52,6 +61,8 @@ public class CreateVehicleService implements CreateVehicleUseCase {
         );
         Vehicle saved = vehicleRepository.save(vehicle);
         VehicleResult result = new VehicleResult(saved.getId(), saved.getLicensePlate(), saved.getModel(), saved.isActive());
+        usageTracker.vehiclesCreated();
+        usageTracker.apiCall("VEHICLE");
         if (idemKey != null) {
             IdempotencyRecord r = new IdempotencyRecord();
             r.setUseCase("CreateVehicle");
